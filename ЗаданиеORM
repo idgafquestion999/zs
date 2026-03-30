@@ -1,0 +1,92 @@
+Часть 1. CRUD-операции
+python
+users_data = ['Alice', 'Bob', 'Charlie']
+users = []
+for name in users_data:
+    user = User(name=name)
+    session.add(user)
+    users.append(user)
+session.commit()
+
+for user in users:
+    for i in range(1, 3):
+        post = Post(title=f'{user.name}\'s post #{i}', user=user)
+        session.add(post)
+session.commit()
+
+user_by_id = session.get(User, 2)
+print(f"Пользователь с ID=2: {user_by_id}")
+
+user_by_id.name = 'Robert'
+session.commit()
+print(f"Имя изменено: {session.get(User, 2)}")
+
+user_to_delete = session.get(User, 3)
+if user_to_delete:
+    session.delete(user_to_delete)
+    session.commit()
+    print(f"Удален пользователь {user_to_delete.name}")
+Часть 2. Работа со связями (наивная реализация с проблемой N+1)
+python
+print("\n--- Часть 2: Получение всех пользователей и их постов ---")
+users = session.query(User).all()
+
+for user in users:
+    print(f"{user.name} посты:")
+    for post in user.posts:
+        print(f"  - {post.title}")
+Часть 3. Анализ работы ORM
+Сколько SQL-запросов выполняется при наивном подходе?
+При наличии N пользователей выполнится:
+
+1 запрос на получение всех пользователей (SELECT * FROM users)
+
+N запросов на получение постов для каждого пользователя (SELECT * FROM posts WHERE user_id = ?)
+
+Итого: N + 1 запросов.
+
+При обращении к user.posts внутри цикла SQLAlchemy по умолчанию загружает связанные объекты лениво (lazy loading). Это значит, что данные постов подгружаются отдельным запросом в момент обращения к атрибуту posts.
+
+Исправление проблемы N+1 (жадная загрузка)
+Чтобы избежать N+1, можно использовать joinedload:
+
+python
+from sqlalchemy.orm import joinedload
+
+print("\n--- Исправление проблемы N+1 с joinedload ---")
+users = session.query(User).options(joinedload(User.posts)).all()
+
+for user in users:
+    print(f"{user.name} посты:")
+    for post in user.posts:
+        print(f"  - {post.title}")
+Теперь выполняется всего 1 SQL-запрос с JOIN:
+
+sql
+SELECT users.id, users.name, posts.id AS posts_id, posts.title, posts.user_id AS posts_user_id
+FROM users LEFT OUTER JOIN posts ON users.id = posts.user_id
+Полный код для проверки
+python
+if __name__ == "__main__":
+    # Часть 1
+    print("=== Часть 1: CRUD ===")
+    # (код из Части 1)
+    
+    # Часть 2 (с N+1)
+    print("\n=== Часть 2: Связи (N+1) ===")
+    # (код из Части 2)
+    
+    # Часть 3 (исправление)
+    print("\n=== Часть 3: Исправление N+1 ===")
+    # (код с joinedload)
+Ответы на вопросы части 3
+Сколько SQL-запросов выполняется?
+При наивном подходе: N + 1, где N — количество пользователей.
+В примере с 3 пользователями — 4 запроса (1 на всех пользователей + 3 на посты).
+После оптимизации — 1 запрос.
+
+Почему выполняется именно столько?
+По умолчанию SQLAlchemy использует lazy loading для связей. Это значит, что данные постов загружаются только тогда, когда мы к ним обращаемся. В цикле это происходит для каждого пользователя отдельно, что и приводит к N дополнительным запросам.
+
+Как исправить?
+Использовать жадную загрузку (eager loading) с помощью joinedload или selectinload, чтобы загрузить связанные объекты сразу в одном запросе через JOIN или отдельный запрос для всех постов.
