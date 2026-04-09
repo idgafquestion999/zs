@@ -1,0 +1,325 @@
+-- =====================================================
+-- ЗАДАНИЕ 1: Сложные запросы к PostgreSQL
+-- Студент: Иванников Максим
+-- =====================================================
+
+-- =====================================================
+-- СОЗДАНИЕ И ЗАПОЛНЕНИЕ ТАБЛИЦ (БАЗА ДЛЯ ЗАПРОСОВ)
+-- =====================================================
+
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS clients;
+
+CREATE TABLE clients (
+    id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    email VARCHAR(120) UNIQUE,
+    phone VARCHAR(30),
+    registered_at DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    price NUMERIC(10,2) NOT NULL CHECK (price > 0),
+    stock INTEGER NOT NULL CHECK (stock >= 0)
+);
+
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    order_date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('new', 'paid', 'canceled', 'shipped')),
+    total_amount NUMERIC(10,2) NOT NULL CHECK (total_amount >= 0),
+    CONSTRAINT fk_orders_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+);
+
+CREATE TABLE order_items (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    price NUMERIC(10,2) NOT NULL CHECK (price > 0),
+    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+INSERT INTO clients (full_name, city, email, phone, registered_at) VALUES
+('Иван Петров', 'Москва', 'ivan@example.com', '+79990000001', '2025-09-01'),
+('Мария Соколова', 'Санкт-Петербург', 'maria@example.com', '+79990000002', '2025-10-12'),
+('Алексей Иванов', 'Казань', 'alex@example.com', '+79990000003', '2025-11-03'),
+('Ольга Смирнова', 'Москва', 'olga@example.com', '+79990000004', '2025-12-21'),
+('Дмитрий Кузнецов', 'Екатеринбург', 'dmitry@example.com', '+79990000005', '2026-01-15'),
+('Елена Орлова', 'Новосибирск', 'elena@example.com', '+79990000006', '2026-01-20'),
+('Сергей Волков', 'Москва', 'sergey@example.com', '+79990000007', '2026-02-01'),
+('Анна Морозова', 'Самара', 'anna@example.com', '+79990000008', '2026-02-10');
+
+INSERT INTO products (title, category, price, stock) VALUES
+('Ноутбук Lenovo IdeaPad', 'Electronics', 65000.00, 12),
+('Смартфон Samsung Galaxy', 'Electronics', 48000.00, 18),
+('Беспроводная мышь Logitech', 'Electronics', 2500.00, 40),
+('Клавиатура механическая', 'Electronics', 7200.00, 15),
+('Офисное кресло', 'Furniture', 13500.00, 7),
+('Письменный стол', 'Furniture', 18900.00, 5),
+('Рюкзак городской', 'Accessories', 3200.00, 25),
+('Термокружка', 'Accessories', 1200.00, 30),
+('Монитор 27 дюймов', 'Electronics', 22100.00, 10),
+('Настольная лампа', 'Furniture', 2900.00, 14),
+('Наушники Bluetooth', 'Electronics', 5400.00, 20),
+('Ежедневник', 'Office', 700.00, 50);
+
+INSERT INTO orders (client_id, order_date, status, total_amount) VALUES
+(1, '2026-01-05', 'paid', 67500.00),
+(1, '2026-01-20', 'shipped', 3200.00),
+(2, '2026-01-11', 'paid', 61500.00),
+(2, '2026-02-02', 'canceled', 2500.00),
+(3, '2026-01-18', 'paid', 24300.00),
+(3, '2026-02-15', 'paid', 8600.00),
+(3, '2026-02-20', 'shipped', 1200.00),
+(4, '2026-01-25', 'new', 13500.00),
+(5, '2026-02-01', 'paid', 18900.00),
+(5, '2026-02-17', 'canceled', 5400.00),
+(7, '2026-02-05', 'paid', 72400.00),
+(7, '2026-02-25', 'paid', 6100.00);
+
+INSERT INTO order_items (order_id, product_id, quantity, price) VALUES
+(1, 1, 1, 65000.00),
+(1, 3, 1, 2500.00),
+(2, 7, 1, 3200.00),
+(3, 2, 1, 48000.00),
+(3, 11, 1, 5400.00),
+(3, 8, 1, 1200.00),
+(4, 3, 1, 2500.00),
+(4, 12, 5, 700.00),
+(5, 3, 1, 2500.00),
+(6, 9, 1, 22100.00),
+(6, 8, 1, 1200.00),
+(6, 12, 1, 700.00),
+(7, 7, 1, 3200.00),
+(8, 4, 1, 7200.00),
+(8, 8, 1, 1200.00),
+(8, 12, 3, 700.00),
+(9, 8, 1, 1200.00),
+(10, 5, 1, 13500.00),
+(11, 6, 1, 18900.00),
+(12, 11, 1, 5400.00);
+
+-- =====================================================
+-- БЛОК 1. Фильтрация и сортировка (1–7)
+-- =====================================================
+
+-- 1. Вывести всех клиентов из Москвы
+SELECT * FROM clients WHERE city = 'Москва';
+
+-- 2. Вывести все товары категории Electronics
+SELECT * FROM products WHERE category = 'Electronics';
+
+-- 3. Найти товары дороже 5000 рублей
+SELECT * FROM products WHERE price > 5000;
+
+-- 4. Вывести оплаченные заказы после 2026-01-01
+SELECT * FROM orders WHERE status = 'paid' AND order_date > '2026-01-01';
+
+-- 5. Найти товары, название которых содержит Ноутбук или Смартфон
+SELECT * FROM products 
+WHERE title LIKE '%Ноутбук%' OR title LIKE '%Смартфон%';
+
+-- 6. Вывести 5 самых дорогих товаров
+SELECT * FROM products ORDER BY price DESC LIMIT 5;
+
+-- 7. Реализовать постраничный вывод товаров: вторая страница по 4 товара
+SELECT * FROM products ORDER BY id LIMIT 4 OFFSET 4;
+
+-- =====================================================
+-- БЛОК 2. JOIN (8–11)
+-- =====================================================
+
+-- 8. Вывести список заказов: номер заказа, дата заказа, статус, имя клиента
+SELECT o.id AS order_number, o.order_date, o.status, c.full_name
+FROM orders o
+JOIN clients c ON o.client_id = c.id;
+
+-- 9. Вывести состав заказов: номер заказа, название товара, количество, цена позиции
+SELECT oi.order_id, p.title, oi.quantity, oi.price
+FROM order_items oi
+JOIN products p ON oi.product_id = p.id;
+
+-- 10. Найти всех клиентов, которые не сделали ни одного заказа
+SELECT c.* FROM clients c
+LEFT JOIN orders o ON c.id = o.client_id
+WHERE o.id IS NULL;
+
+-- 11. Вывести все товары и количество раз, которое они встречались в заказах, включая товары без продаж
+SELECT p.id, p.title, COUNT(oi.order_id) AS times_ordered
+FROM products p
+LEFT JOIN order_items oi ON p.id = oi.product_id
+GROUP BY p.id, p.title
+ORDER BY times_ordered DESC;
+
+-- =====================================================
+-- БЛОК 3. Агрегация и группировка (12–17)
+-- =====================================================
+
+-- 12. Посчитать общее количество заказов в таблице orders
+SELECT COUNT(*) AS total_orders FROM orders;
+
+-- 13. Посчитать общую сумму всех оплаченных заказов
+SELECT SUM(total_amount) AS total_paid_sum FROM orders WHERE status = 'paid';
+
+-- 14. Вывести количество заказов по каждому клиенту
+SELECT c.full_name, COUNT(o.id) AS order_count
+FROM clients c
+LEFT JOIN orders o ON c.id = o.client_id
+GROUP BY c.id, c.full_name;
+
+-- 15. Вывести среднюю сумму заказа по каждому клиенту
+SELECT c.full_name, AVG(o.total_amount) AS avg_order_amount
+FROM clients c
+LEFT JOIN orders o ON c.id = o.client_id
+GROUP BY c.id, c.full_name;
+
+-- 16. Найти клиентов, у которых больше 2 заказов
+SELECT c.full_name, COUNT(o.id) AS order_count
+FROM clients c
+JOIN orders o ON c.id = o.client_id
+GROUP BY c.id, c.full_name
+HAVING COUNT(o.id) > 2;
+
+-- 17. Вывести категории товаров и максимальную цену в каждой категории
+SELECT category, MAX(price) AS max_price
+FROM products
+GROUP BY category;
+
+-- =====================================================
+-- БЛОК 4. FILTER (18–19)
+-- =====================================================
+
+-- 18. Для каждого клиента: общее число заказов, оплаченных, отменённых
+SELECT 
+    c.full_name,
+    COUNT(o.id) AS total_orders,
+    COUNT(o.id) FILTER (WHERE o.status = 'paid') AS paid_orders,
+    COUNT(o.id) FILTER (WHERE o.status = 'canceled') AS canceled_orders
+FROM clients c
+LEFT JOIN orders o ON c.id = o.client_id
+GROUP BY c.id, c.full_name;
+
+-- 19. Для каждого клиента: сумма оплаченных и отменённых заказов
+SELECT 
+    c.full_name,
+    COALESCE(SUM(o.total_amount) FILTER (WHERE o.status = 'paid'), 0) AS paid_sum,
+    COALESCE(SUM(o.total_amount) FILTER (WHERE o.status = 'canceled'), 0) AS canceled_sum
+FROM clients c
+LEFT JOIN orders o ON c.id = o.client_id
+GROUP BY c.id, c.full_name;
+
+-- =====================================================
+-- БЛОК 5. Подзапросы и EXISTS (20–23)
+-- =====================================================
+
+-- 20. Найти клиентов, у которых есть хотя бы один оплаченный заказ
+SELECT * FROM clients c
+WHERE EXISTS (
+    SELECT 1 FROM orders o 
+    WHERE o.client_id = c.id AND o.status = 'paid'
+);
+
+-- 21. Найти товары, которые ни разу не встречались в заказах
+SELECT * FROM products p
+WHERE NOT EXISTS (
+    SELECT 1 FROM order_items oi WHERE oi.product_id = p.id
+);
+
+-- 22. Вывести клиентов, сумма заказов которых больше средней суммы заказов по всем клиентам
+SELECT c.full_name, SUM(o.total_amount) AS total_spent
+FROM clients c
+JOIN orders o ON c.id = o.client_id
+GROUP BY c.id, c.full_name
+HAVING SUM(o.total_amount) > (SELECT AVG(total_amount) FROM orders);
+
+-- 23. Найти заказы, в которых есть товары категории Electronics
+SELECT DISTINCT o.* FROM orders o
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id
+WHERE p.category = 'Electronics';
+
+-- =====================================================
+-- БЛОК 6. CTE (24–26)
+-- =====================================================
+
+-- 24. С помощью WITH создать временный набор оплаченных заказов и вывести сумму по клиентам
+WITH paid_orders AS (
+    SELECT * FROM orders WHERE status = 'paid'
+)
+SELECT client_id, SUM(total_amount) AS total_paid
+FROM paid_orders
+GROUP BY client_id;
+
+-- 25. С помощью CTE найти клиентов с более чем 1 оплаченным заказом и вывести их средний чек
+WITH paid_orders_count AS (
+    SELECT client_id, COUNT(*) AS paid_count, AVG(total_amount) AS avg_check
+    FROM orders
+    WHERE status = 'paid'
+    GROUP BY client_id
+    HAVING COUNT(*) > 1
+)
+SELECT c.full_name, poc.paid_count, poc.avg_check
+FROM paid_orders_count poc
+JOIN clients c ON poc.client_id = c.id;
+
+-- 26. Разбить сложный запрос на несколько этапов через CTE
+WITH moscow_clients AS (
+    SELECT id, full_name FROM clients WHERE city = 'Москва'
+),
+paid_orders_moscow AS (
+    SELECT o.client_id, o.total_amount
+    FROM orders o
+    JOIN moscow_clients mc ON o.client_id = mc.id
+    WHERE o.status = 'paid'
+)
+SELECT mc.full_name, COUNT(*) AS orders_count, AVG(pom.total_amount) AS avg_check
+FROM moscow_clients mc
+JOIN paid_orders_moscow pom ON mc.id = pom.client_id
+GROUP BY mc.id, mc.full_name;
+
+-- =====================================================
+-- БЛОК 7. VIEW (27–28)
+-- =====================================================
+
+-- 27. Создать представление v_order_details
+CREATE OR REPLACE VIEW v_order_details AS
+SELECT 
+    o.id AS order_id,
+    c.full_name AS client_name,
+    o.order_date,
+    o.status,
+    p.title AS product_title,
+    oi.quantity,
+    oi.price
+FROM orders o
+JOIN clients c ON o.client_id = c.id
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id;
+
+-- 28. Выполнить запрос к представлению и вывести все товары, купленные конкретным клиентом
+SELECT * FROM v_order_details WHERE client_name = 'Иван Петров';
+
+-- =====================================================
+-- БЛОК 8. Аналитика (29)
+-- =====================================================
+
+-- 29. Итоговый аналитический запрос
+SELECT 
+    c.full_name,
+    COUNT(o.id) FILTER (WHERE o.status = 'paid') AS paid_orders_count,
+    COALESCE(SUM(o.total_amount) FILTER (WHERE o.status = 'paid'), 0) AS total_paid_sum,
+    COALESCE(AVG(o.total_amount) FILTER (WHERE o.status = 'paid'), 0) AS avg_paid_check
+FROM clients c
+LEFT JOIN orders o ON c.id = o.client_id
+GROUP BY c.id, c.full_name
+HAVING COALESCE(SUM(o.total_amount) FILTER (WHERE o.status = 'paid'), 0) > 5000
+ORDER BY total_paid_sum DESC;
