@@ -1,0 +1,191 @@
+-- =====================================================
+-- ЗАДАНИЕ 3: Курсовой проект. Вариант 9 — Туристическое агентство
+-- Студент: Иванников Максим
+-- База данных: travel_agency_ivannikov_maxim
+-- =====================================================
+
+-- =====================================================
+-- DDL: Создание таблиц
+-- =====================================================
+
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS tours;
+DROP TABLE IF EXISTS clients;
+DROP TABLE IF EXISTS hotels;
+DROP TABLE IF EXISTS countries;
+DROP TABLE IF EXISTS tour_statuses;
+
+CREATE TABLE countries (
+    country_id SERIAL PRIMARY KEY,
+    country_name VARCHAR(100) NOT NULL UNIQUE,
+    continent VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE hotels (
+    hotel_id SERIAL PRIMARY KEY,
+    hotel_name VARCHAR(150) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    country_id INTEGER NOT NULL,
+    star_rating INTEGER CHECK (star_rating BETWEEN 1 AND 5),
+    description TEXT,
+    CONSTRAINT fk_hotels_country FOREIGN KEY (country_id) REFERENCES countries(country_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE tour_statuses (
+    status_id SERIAL PRIMARY KEY,
+    status_name VARCHAR(30) NOT NULL UNIQUE
+);
+
+CREATE TABLE tours (
+    tour_id SERIAL PRIMARY KEY,
+    tour_name VARCHAR(200) NOT NULL,
+    country_id INTEGER NOT NULL,
+    hotel_id INTEGER NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    price NUMERIC(10,2) NOT NULL CHECK (price > 0),
+    max_participants INTEGER NOT NULL CHECK (max_participants > 0),
+    status_id INTEGER NOT NULL,
+    description TEXT,
+    CONSTRAINT fk_tours_country FOREIGN KEY (country_id) REFERENCES countries(country_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_tours_hotel FOREIGN KEY (hotel_id) REFERENCES hotels(hotel_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_tours_status FOREIGN KEY (status_id) REFERENCES tour_statuses(status_id) ON DELETE RESTRICT,
+    CONSTRAINT check_dates CHECK (end_date > start_date)
+);
+
+CREATE TABLE clients (
+    client_id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    passport_number VARCHAR(20) NOT NULL UNIQUE,
+    phone VARCHAR(20),
+    email VARCHAR(100) UNIQUE,
+    registration_date DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
+CREATE TABLE bookings (
+    booking_id SERIAL PRIMARY KEY,
+    tour_id INTEGER NOT NULL,
+    client_id INTEGER NOT NULL,
+    booking_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    participants_count INTEGER NOT NULL CHECK (participants_count > 0),
+    total_price NUMERIC(10,2) NOT NULL CHECK (total_price >= 0),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('new', 'confirmed', 'paid', 'canceled')),
+    CONSTRAINT fk_bookings_tour FOREIGN KEY (tour_id) REFERENCES tours(tour_id) ON DELETE CASCADE,
+    CONSTRAINT fk_bookings_client FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- DML: Наполнение таблиц
+-- =====================================================
+
+INSERT INTO tour_statuses (status_name) VALUES
+('available'), ('fully_booked'), ('ongoing'), ('completed'), ('cancelled');
+
+INSERT INTO countries (country_name, continent) VALUES
+('Турция', 'Европа/Азия'),
+('Египет', 'Африка'),
+('Таиланд', 'Азия'),
+('Италия', 'Европа'),
+('ОАЭ', 'Азия'),
+('Мальдивы', 'Азия');
+
+INSERT INTO hotels (hotel_name, city, country_id, star_rating, description) VALUES
+('Rixos Premium', 'Анталья', 1, 5, 'Роскошный отель с собственным пляжем'),
+('Hilton Antalya', 'Анталья', 1, 5, 'Современный отель в центре'),
+('Jaz Aquamarine', 'Хургада', 2, 5, 'Аквапарк и отличный сервис'),
+('Movenpick Resort', 'Хургада', 2, 5, 'Отель на первой береговой линии'),
+('Amari Phuket', 'Пхукет', 3, 4, 'Вид на Андаманское море'),
+('Shangri-La', 'Бангкок', 3, 5, 'Люкс в центре столицы'),
+('Grand Hotel Tremezzo', 'Комо', 4, 5, 'Вид на озеро Комо'),
+('Atlantis The Palm', 'Дубай', 5, 5, 'Знаменитый отель на Пальме'),
+('Conrad Dubai', 'Дубай', 5, 5, 'Деловой и развлекательный центр'),
+('Anantara Kihavah', 'Мале', 6, 5, 'Виллы над водой');
+
+INSERT INTO clients (full_name, passport_number, phone, email, registration_date) VALUES
+('Иван Петров', '4510 123456', '+79001234567', 'ivan@mail.ru', '2025-01-10'),
+('Мария Соколова', '4510 234567', '+79007654321', 'maria@mail.ru', '2025-01-15'),
+('Алексей Иванов', '4510 345678', '+79001112233', 'alex@mail.ru', '2025-02-01'),
+('Ольга Смирнова', '4510 456789', '+79004445566', 'olga@mail.ru', '2025-02-10'),
+('Дмитрий Кузнецов', '4510 567890', '+79007778899', 'dmitry@mail.ru', '2025-03-01'),
+('Елена Орлова', '4510 678901', '+79009990011', 'elena@mail.ru', '2025-03-15'),
+('Максим Иванников', '4510 789012', '+79005556677', 'maxim@mail.ru', '2025-04-01');
+
+INSERT INTO tours (tour_name, country_id, hotel_id, start_date, end_date, price, max_participants, status_id, description) VALUES
+('Лето в Анталии', 1, 1, '2026-06-01', '2026-06-14', 85000.00, 20, 1, 'Отдых на Средиземном море'),
+('Золотой песок Египта', 2, 3, '2026-07-10', '2026-07-20', 65000.00, 25, 1, 'Дайвинг и экскурсии'),
+('Сказки Таиланда', 3, 5, '2026-08-05', '2026-08-19', 120000.00, 15, 1, 'Путешествие по королевству'),
+('Итальянская классика', 4, 7, '2026-09-01', '2026-09-12', 185000.00, 10, 1, 'Озеро Комо и Милан'),
+('Роскошь Дубая', 5, 8, '2026-10-01', '2026-10-08', 210000.00, 8, 1, 'Шопинг и небоскрёбы'),
+('Мальдивская сказка', 6, 10, '2026-11-15', '2026-11-25', 320000.00, 12, 1, 'Виллы над водой, закаты'),
+('Новый год в Турции', 1, 2, '2026-12-28', '2027-01-04', 95000.00, 30, 1, 'Новогодний тур с программой');
+
+INSERT INTO bookings (tour_id, client_id, booking_date, participants_count, total_price, status) VALUES
+(1, 1, '2026-01-15', 2, 170000.00, 'paid'),
+(1, 2, '2026-01-20', 1, 85000.00, 'confirmed'),
+(2, 3, '2026-02-01', 2, 130000.00, 'paid'),
+(3, 4, '2026-02-10', 1, 120000.00, 'paid'),
+(3, 5, '2026-02-15', 2, 240000.00, 'confirmed'),
+(4, 6, '2026-03-01', 2, 370000.00, 'new'),
+(5, 7, '2026-03-10', 1, 210000.00, 'paid'),
+(6, 1, '2026-03-15', 2, 640000.00, 'confirmed'),
+(6, 2, '2026-03-20', 1, 320000.00, 'paid'),
+(7, 3, '2026-04-01', 3, 285000.00, 'new');
+
+-- =====================================================
+-- DQL: Проверочные запросы
+-- =====================================================
+
+-- 1. Все туры с деталями
+SELECT 
+    t.tour_name,
+    c.country_name,
+    h.hotel_name,
+    h.star_rating,
+    t.start_date,
+    t.end_date,
+    t.price,
+    ts.status_name AS tour_status
+FROM tours t
+JOIN countries c ON t.country_id = c.country_id
+JOIN hotels h ON t.hotel_id = h.hotel_id
+JOIN tour_statuses ts ON t.status_id = ts.status_id
+ORDER BY t.start_date;
+
+-- 2. Клиенты с суммой бронирований
+SELECT 
+    cl.full_name,
+    COUNT(b.booking_id) AS bookings_count,
+    SUM(b.total_price) AS total_spent
+FROM clients cl
+LEFT JOIN bookings b ON cl.client_id = b.client_id
+GROUP BY cl.client_id, cl.full_name
+ORDER BY total_spent DESC NULLS LAST;
+
+-- 3. Самые популярные туры
+SELECT 
+    t.tour_name,
+    c.country_name,
+    COUNT(b.booking_id) AS bookings_count,
+    SUM(b.participants_count) AS total_participants
+FROM tours t
+JOIN countries c ON t.country_id = c.country_id
+LEFT JOIN bookings b ON t.tour_id = b.tour_id
+GROUP BY t.tour_id, t.tour_name, c.country_name
+ORDER BY bookings_count DESC;
+
+-- 4. Оплаченные бронирования
+SELECT 
+    b.booking_id,
+    cl.full_name AS client_name,
+    t.tour_name,
+    c.country_name,
+    b.booking_date,
+    b.participants_count,
+    b.total_price,
+    b.status
+FROM bookings b
+JOIN clients cl ON b.client_id = cl.client_id
+JOIN tours t ON b.tour_id = t.tour_id
+JOIN countries c ON t.country_id = c.country_id
+WHERE b.status = 'paid'
+ORDER BY b.booking_date DESC;
