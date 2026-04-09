@@ -1,0 +1,105 @@
+-- =====================================================
+-- ЗАДАНИЕ 2: Моя Библиотека
+-- Студент: Иванников Максим
+-- База данных: library_ivannikov_maxim
+-- =====================================================
+
+-- =====================================================
+-- ЭТАП 1: Создание таблиц
+-- =====================================================
+
+DROP TABLE IF EXISTS books;
+DROP TABLE IF EXISTS authors;
+
+CREATE TABLE authors (
+    author_id SERIAL PRIMARY KEY,
+    author_name VARCHAR(100) NOT NULL,
+    birth_year INTEGER
+);
+
+CREATE TABLE books (
+    book_id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    author_id INTEGER NOT NULL,
+    publication_year INTEGER,
+    genre VARCHAR(50),
+    FOREIGN KEY (author_id) REFERENCES authors(author_id) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- ЭТАП 2: Наполнение данными + добавление себя
+-- =====================================================
+
+INSERT INTO authors (author_name, birth_year) VALUES
+('Лев Толстой', 1828),
+('Федор Достоевский', 1821),
+('Александр Пушкин', 1799);
+
+INSERT INTO books (title, author_id, publication_year, genre) VALUES
+('Война и мир', 1, 1869, 'Роман'),
+('Анна Каренина', 1, 1877, 'Роман'),
+('Преступление и наказание', 2, 1866, 'Роман'),
+('Идиот', 2, 1868, 'Роман'),
+('Евгений Онегин', 3, 1833, 'Роман в стихах');
+
+-- ИДЕНТИФИКАЦИЯ: Добавление себя
+INSERT INTO authors (author_name, birth_year) VALUES ('Максим Иванников', 2000);
+
+DO $$ 
+DECLARE
+    my_id INTEGER;
+BEGIN
+    SELECT author_id INTO my_id FROM authors WHERE author_name = 'Максим Иванников';
+    INSERT INTO books (title, author_id, publication_year, genre) 
+    VALUES ('Мастер и Маргарита', my_id, 1967, 'Роман');
+END $$;
+
+-- Проверка: SELECT * FROM authors; SELECT * FROM books;
+
+-- =====================================================
+-- ЭТАП 3: UPDATE
+-- =====================================================
+
+UPDATE books SET publication_year = 1867 WHERE title = 'Война и мир';
+
+UPDATE books 
+SET title = title || ' (классика)'
+WHERE author_id = (SELECT author_id FROM authors WHERE author_name = 'Федор Достоевский');
+
+-- Проверка: SELECT * FROM books;
+
+-- =====================================================
+-- ЭТАП 4: DELETE
+-- =====================================================
+
+DELETE FROM books WHERE title = 'Евгений Онегин';
+
+DELETE FROM books WHERE publication_year < 1850;
+
+-- Проверка: SELECT * FROM books;
+
+-- =====================================================
+-- ЭТАП 5: TRANSACTION
+-- =====================================================
+
+BEGIN;
+
+INSERT INTO authors (author_name, birth_year) VALUES ('Л.Н. Толстой', 1828);
+
+UPDATE books 
+SET author_id = (SELECT author_id FROM authors WHERE author_name = 'Л.Н. Толстой')
+WHERE author_id = (SELECT author_id FROM authors WHERE author_name = 'Лев Толстой');
+
+DELETE FROM authors WHERE author_name = 'Лев Толстой';
+
+COMMIT;
+
+-- Проверка: SELECT * FROM authors; SELECT * FROM books;
+
+-- =====================================================
+-- ЭТАП 6: RETURNING
+-- =====================================================
+
+INSERT INTO authors (author_name, birth_year) 
+VALUES ('Антон Чехов', 1860)
+RETURNING author_id, author_name;
